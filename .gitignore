@@ -1,0 +1,13 @@
+# Environment variables
+.env
+
+# Python & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+
+# Ruff / Linters
+.ruff_cache/
