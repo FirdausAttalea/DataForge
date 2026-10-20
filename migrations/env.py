@@ -4,6 +4,7 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from dataforge.config import settings
 from dataforge.models import session  # noqa: F401
+from dataforge.models import project  # noqa: F401
 
 from alembic import context
 
@@ -11,7 +12,7 @@ from alembic import context
 # access to the values within the .ini file in use.
 config = context.config
 # Use an explicitly configured URL if one was passed in (for example, by tests).
-# Otherwise fall back to the application settings from .env.
+# Otherwise fall back to the application settings from .env / config.
 configured_url = config.get_main_option("sqlalchemy.url") or settings.database_url
 config.set_main_option("sqlalchemy.url", configured_url)
 
