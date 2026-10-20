@@ -3,6 +3,9 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session as DbSession
 
+from dataforge.security.csrf import CSRF_COOKIE, new_csrf_token, tokens_match
+from dataforge.security.csrf import CSRF_COOKIE, new_csrf_token
+
 from dataforge.database import get_db
 from dataforge.security.passwords import MAX_LENGTH, MIN_LENGTH, PasswordPolicyError
 from dataforge.services import auth as auth_service
@@ -51,7 +54,6 @@ def register(body: RegisterRequest, db: DbSession = Depends(get_db)) -> UserOut:
         raise HTTPException(status_code=422, detail=str(e))
     return UserOut(id=str(user.id), email=user.email)
 
-
 @router.post("/login", response_model=UserOut)
 def login(body: LoginRequest, response: Response, db: DbSession = Depends(get_db)) -> UserOut:
     try:
@@ -59,16 +61,36 @@ def login(body: LoginRequest, response: Response, db: DbSession = Depends(get_db
     except AuthError:
         raise HTTPException(status_code=401, detail="Invalid email or password.")
     _set_session_cookie(response, token)
+    # Readable by JavaScript on purpose: the frontend copies it into the X-CSRF-Token header.
+    response.set_cookie(
+        key=CSRF_COOKIE,
+        value=new_csrf_token(),
+        max_age=SESSION_MAX_AGE,
+        httponly=False,
+        secure=True,
+        samesite="lax",
+        path="/",
+    )
     user = auth_service.get_user_for_token(db, token)
     return UserOut(id=str(user.id), email=user.email)
 
 
+from fastapi import Header
+
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
-def logout(response: Response, df_session: str | None = Cookie(default=None),
-           db: DbSession = Depends(get_db)) -> Response:
+def logout(
+    response: Response,
+    df_session: str | None = Cookie(default=None),
+    df_csrf: str | None = Cookie(default=None),
+    x_csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),
+    db: DbSession = Depends(get_db),
+) -> Response:
+    if not tokens_match(df_csrf, x_csrf_token):
+        raise HTTPException(status_code=403, detail="CSRF validation failed.")
     if df_session:
         auth_service.logout_session(db, df_session)
     response.delete_cookie(SESSION_COOKIE, path="/")
+    response.delete_cookie(CSRF_COOKIE, path="/")
     response.status_code = status.HTTP_204_NO_CONTENT
     return response
 
