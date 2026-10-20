@@ -93,9 +93,14 @@ def test_me_rejects_forged_cookie(client):
 
 def test_logout_invalidates_session(client):
     register(client)
-    token = login(client).cookies.get("df_session")
-    assert client.get("/api/v1/auth/me", cookies={"df_session": token}).status_code == 200
-    assert client.post("/api/v1/auth/logout", cookies={"df_session": token}).status_code == 204
+    r = login(client)
+    token = r.cookies.get("df_session")
+    csrf = r.cookies.get("df_csrf")
+    headers = {"X-CSRF-Token": csrf}
+    cookies = {"df_session": token, "df_csrf": csrf}
+
+    assert client.get("/api/v1/auth/me", cookies=cookies).status_code == 200
+    assert client.post("/api/v1/auth/logout", cookies=cookies, headers=headers).status_code == 204
     assert client.get("/api/v1/auth/me", cookies={"df_session": token}).status_code == 401
 
 
@@ -112,3 +117,13 @@ def test_expired_session_rejected(client, monkeypatch):
     finally:
         db.close()
     assert client.get("/api/v1/auth/me").status_code == 401
+
+def test_login_sets_csrf_cookie_readable_by_js(client):
+    register(client)
+    r = login(client)
+    assert r.cookies.get("df_csrf")
+    set_cookie = r.headers["set-cookie"].lower()
+    assert "df_csrf=" in set_cookie
+    # The CSRF cookie must NOT be HttpOnly, so the frontend can read it.
+    csrf_segment = [part for part in set_cookie.split(", ") if part.startswith("df_csrf=")][0]
+    assert "httponly" not in csrf_segment
