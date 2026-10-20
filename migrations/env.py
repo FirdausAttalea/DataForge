@@ -3,6 +3,7 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from dataforge.config import settings
+from dataforge.models import session  # noqa: F401
 
 from alembic import context
 
