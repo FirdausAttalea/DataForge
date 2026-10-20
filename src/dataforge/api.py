@@ -1,10 +1,13 @@
 from fastapi import FastAPI, Response
 from sqlalchemy import create_engine, text
+from dataforge.routes.auth import router as auth_router
 
 from dataforge.config import settings
 
 app = FastAPI(title="DataForge API", version="0.1.0")
 
+
+app.include_router(auth_router)
 
 def check_postgres() -> bool:
     engine = create_engine(settings.database_url, pool_pre_ping=True)
