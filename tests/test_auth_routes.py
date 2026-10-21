@@ -29,12 +29,11 @@ def test_register_normalizes_email_case(client):
     register(client, email="Alice@Example.com")
     assert login(client, email="alice@example.com").status_code == 200
 
-
 def test_duplicate_email_rejected(client):
     register(client)
     r = register(client)
     assert r.status_code == 400
-    assert r.json()["detail"] == "Registration failed."
+    assert r.json()["error"]["message"] == "Registration failed."
 
 
 def test_short_password_rejected(client):
@@ -57,19 +56,19 @@ def test_login_sets_httponly_secure_cookie(client):
     assert "secure" in cookie
     assert "samesite=lax" in cookie
 
-
 def test_wrong_password_rejected(client):
     register(client)
     r = login(client, password="wrong-password-123")
     assert r.status_code == 401
-    assert r.json()["detail"] == "Invalid email or password."
+    assert r.json()["error"]["message"] == "Invalid email or password."
 
 
 def test_unknown_email_gives_same_error_as_wrong_password(client):
     register(client)
-    wrong_pw = login(client, password="wrong-password-123").json()
-    unknown = login(client, email="nobody@example.com").json()
-    assert wrong_pw == unknown
+    wrong_pw = login(client, password="wrong-password-123").json()["error"]
+    unknown = login(client, email="nobody@example.com").json()["error"]
+    assert wrong_pw["code"] == unknown["code"]
+    assert wrong_pw["message"] == unknown["message"]
 
 
 def test_me_returns_user_with_valid_cookie(client):

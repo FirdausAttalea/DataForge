@@ -3,9 +3,11 @@ from sqlalchemy import create_engine, text
 from dataforge.routes.auth import router as auth_router
 
 from dataforge.config import settings
+from dataforge.error_handlers import register_error_handlers
 
 app = FastAPI(title="DataForge API", version="0.1.0")
 
+register_error_handlers(app)
 
 app.include_router(auth_router)
 
