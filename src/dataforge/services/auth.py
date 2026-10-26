@@ -24,11 +24,11 @@ def normalize_email(email: str) -> str:
     return email.strip().lower()
 
 
-def register_user(db: DbSession, email: str, password: str) -> User:
+def register_user(db: DbSession, email: str, password: str, first_name: str, last_name: str, role: str) -> User:
     email = normalize_email(email)
     if db.scalar(select(User).where(User.email == email)) is not None:
         raise AuthError("Registration failed.")
-    user = User(email=email, password_hash=hash_password(password))
+    user = User(email=email, password_hash=hash_password(password), first_name=first_name, last_name=last_name, role=role)
     db.add(user)
     db.commit()
     db.refresh(user)

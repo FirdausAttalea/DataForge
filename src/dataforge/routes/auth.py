@@ -20,6 +20,9 @@ SESSION_MAX_AGE = 7 * 24 * 60 * 60
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=MIN_LENGTH, max_length=MAX_LENGTH)
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
+    role: str = Field(min_length=1, max_length=50)
 
 
 class LoginRequest(BaseModel):
@@ -30,6 +33,9 @@ class LoginRequest(BaseModel):
 class UserOut(BaseModel):
     id: str
     email: str
+    first_name: str
+    last_name: str
+    role: str
 
 
 def _set_session_cookie(response: Response, token: str) -> None:
@@ -47,12 +53,12 @@ def _set_session_cookie(response: Response, token: str) -> None:
 @router.post("/register", status_code=status.HTTP_201_CREATED, response_model=UserOut)
 def register(body: RegisterRequest, db: DbSession = Depends(get_db)) -> UserOut:
     try:
-        user = auth_service.register_user(db, body.email, body.password)
+        user = auth_service.register_user(db, body.email, body.password, body.first_name, body.last_name, body.role)
     except AuthError:
         raise HTTPException(status_code=400, detail="Registration failed.")
     except PasswordPolicyError as e:
         raise HTTPException(status_code=422, detail=str(e))
-    return UserOut(id=str(user.id), email=user.email)
+    return UserOut(id=str(user.id), email=user.email, first_name=user.first_name, last_name=user.last_name, role=user.role)
 
 @router.post("/login", response_model=UserOut)
 def login(body: LoginRequest, response: Response, db: DbSession = Depends(get_db)) -> UserOut:
@@ -72,7 +78,7 @@ def login(body: LoginRequest, response: Response, db: DbSession = Depends(get_db
         path="/",
     )
     user = auth_service.get_user_for_token(db, token)
-    return UserOut(id=str(user.id), email=user.email)
+    return UserOut(id=str(user.id), email=user.email, first_name=user.first_name, last_name=user.last_name, role=user.role)
 
 
 from fastapi import Header
@@ -100,4 +106,4 @@ def me(df_session: str | None = Cookie(default=None), db: DbSession = Depends(ge
     user = auth_service.get_user_for_token(db, df_session) if df_session else None
     if user is None:
         raise HTTPException(status_code=401, detail="Not authenticated.")
-    return UserOut(id=str(user.id), email=user.email)
+    return UserOut(id=str(user.id), email=user.email, first_name=user.first_name, last_name=user.last_name, role=user.role)

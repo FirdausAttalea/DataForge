@@ -117,6 +117,12 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name: string;
+            /** Role */
+            role: string;
         };
         /** UserOut */
         UserOut: {
@@ -124,6 +130,12 @@ export interface components {
             email: string;
             /** Id */
             id: string;
+            /** First Name */
+            first_name: string;
+            /** Last Name */
+            last_name: string;
+            /** Role */
+            role: string;
         };
         /** ValidationError */
         ValidationError: {
