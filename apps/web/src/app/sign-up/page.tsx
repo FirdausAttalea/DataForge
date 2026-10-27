@@ -373,11 +373,15 @@ export default function SignUpPage() {
                       </span>
                       <span className="text-gray-400">Min 8 chars, numbers & symbol</span>
                     </div>
-                  </>
-                )}
-              </div>
+                   </>
+                 )}
+               </div>
 
-              {/* Role Selection */}
+               <div className="flex justify-end">
+                 <Link href="/forgot-password" className="text-xs text-indigo-600 hover:text-indigo-700 transition">Forgot password?</Link>
+               </div>
+
+               {/* Role Selection */}
               <div className="space-y-2.5 pt-1">
                 <span className="block text-sm font-semibold text-gray-800">Primary Role / Objective</span>
                 <div className="grid grid-cols-3 gap-2.5">

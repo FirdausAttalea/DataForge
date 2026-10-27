@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { api, ApiError, type UserOut } from "@/lib/api/client";
 
 function GoogleIcon() {
@@ -74,6 +75,7 @@ function SSOIcon() {
 }
 
 export default function SignInPage() {
+  const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [user, setUser] = useState<UserOut | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -81,14 +83,16 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
-  // On load, ask the API whether a session cookie already exists.
   useEffect(() => {
     api
       .me()
-      .then(setUser)
+      .then((existingUser) => {
+        setUser(existingUser);
+        router.push("/workspace-setup");
+      })
       .catch(() => setUser(null))
       .finally(() => setChecking(false));
-  }, []);
+  }, [router]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -96,15 +100,14 @@ export default function SignInPage() {
     setSubmitting(true);
     setMessage(null);
     try {
-      setUser(
-        await api.login({
-          email: String(form.get("email")),
-          password: String(form.get("password")),
-        }),
-      );
+      const loggedInUser = await api.login({
+        email: String(form.get("email")),
+        password: String(form.get("password")),
+      });
+      setUser(loggedInUser);
+      router.push("/workspace-setup");
     } catch (err) {
       setMessage(err instanceof ApiError ? err.message : "Could not reach the server.");
-    } finally {
       setSubmitting(false);
     }
   }
@@ -317,7 +320,6 @@ export default function SignInPage() {
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="block text-sm font-semibold text-gray-800">Password</label>
-                  <a href="#" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 transition">Forgot password?</a>
                 </div>
                 <div className="flex items-center border border-gray-300 rounded-lg px-3.5 py-2.5 focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-500 transition">
                   <LockIcon />
@@ -337,6 +339,9 @@ export default function SignInPage() {
                     {showPassword ? <EyeOffIcon /> : <EyeIcon />}
                   </button>
                 </div>
+                <div className="flex justify-end">
+                  <Link href="/forgot-password" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 transition">Forgot password?</Link>
+                </div>
               </div>
 
               {/* Remember Me */}
@@ -347,7 +352,7 @@ export default function SignInPage() {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="w-4 h-4 accent-indigo-600 rounded border-gray-300 cursor-pointer"
                 />
-                <span className="text-sm text-gray-600">Remember this machine for 30 days</span>
+                <span className="text-sm text-gray-600">Remember me for 30 days</span>
               </label>
 
               {/* Error */}
@@ -364,14 +369,14 @@ export default function SignInPage() {
               </button>
             </form>
 
-            {/* SSO */}
+            {/* SSO
             <div className="mt-6 flex items-center justify-between text-sm">
               <span className="text-gray-500">Using company credentials?</span>
               <button className="flex items-center gap-1.5 font-semibold text-gray-900 hover:text-gray-700 transition">
                 <SSOIcon />
                 Sign in with SSO
               </button>
-            </div>
+            </div> */}
 
             {/* Create Account */}
             <div className="mt-4 text-center text-sm text-gray-500">
