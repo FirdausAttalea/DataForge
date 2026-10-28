@@ -1,30 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
+import { provisionWorkspace } from "@/lib/store/provision";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    
-    if (!body.name || !body.slug) {
+    const sessionCookie = request.cookies.get("df_session");
+    if (!sessionCookie) {
       return NextResponse.json(
-        { error: { code: "VALIDATION_ERROR", message: "Missing required fields: name, slug" } },
+        { error: { code: "UNAUTHORIZED", message: "Not authenticated" } },
+        { status: 401 }
+      );
+    }
+
+    const userId = sessionCookie.value.split(".")[0];
+    const body = await request.json();
+
+    if (!body.name || !body.slug || !body.primaryGoal || !body.experienceLevel) {
+      return NextResponse.json(
+        { error: { code: "VALIDATION_ERROR", message: "Missing required fields" } },
         { status: 400 }
       );
     }
 
-    const workspace = {
-      id: `ws-${Date.now()}`,
+    const result = await provisionWorkspace(userId, {
       name: body.name,
       slug: body.slug,
-      engine: body.engine || "duckdb",
-      datasets: body.datasets || [],
-      created_at: new Date().toISOString(),
-      setup_completed: true,
-    };
+      primaryGoal: body.primaryGoal,
+      experienceLevel: body.experienceLevel,
+      createStarterProject: body.createStarterProject || false,
+    });
 
-    return NextResponse.json(workspace);
-  } catch {
+    return NextResponse.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not create workspace";
     return NextResponse.json(
-      { error: { code: "INTERNAL_ERROR", message: "Could not create workspace." } },
+      { error: { code: "INTERNAL_ERROR", message } },
       { status: 500 }
     );
   }

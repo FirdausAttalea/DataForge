@@ -1,12 +1,14 @@
 import { Lightbulb, SlidersHorizontal, Upload } from "lucide-react";
 import { CaseRow } from "./CaseRow";
 import type { BusinessCase } from "@/lib/mock/dashboard";
+import type { UserRole } from "@/lib/store";
 
 interface CasePanelProps {
   cases: BusinessCase[];
+  role?: UserRole;
 }
 
-export function CasePanel({ cases }: CasePanelProps) {
+export function CasePanel({ cases, role }: CasePanelProps) {
   return (
     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
       <div className="p-6 border-b border-slate-100">

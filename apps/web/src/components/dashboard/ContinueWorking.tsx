@@ -5,9 +5,10 @@ import type { Project } from "@/lib/mock/dashboard";
 
 interface ContinueWorkingProps {
   projects: Project[];
+  totalCount: number;
 }
 
-export function ContinueWorking({ projects }: ContinueWorkingProps) {
+export function ContinueWorking({ projects, totalCount }: ContinueWorkingProps) {
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between mb-5">
@@ -18,7 +19,7 @@ export function ContinueWorking({ projects }: ContinueWorkingProps) {
           </span>
         </div>
         <Link href="/projects" className="text-sm text-indigo-600 font-semibold hover:text-indigo-700 transition flex items-center gap-1">
-          View all projects ({projects.length})
+          View all projects ({totalCount})
           <ArrowRight size={16} />
         </Link>
       </div>

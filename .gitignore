@@ -11,3 +11,9 @@ venv/
 
 # Ruff / Linters
 .ruff_cache/
+
+# Frontend data (prototype store)
+apps/web/data/
+apps/web/apps/web/data/
+**/data/store.json
+
