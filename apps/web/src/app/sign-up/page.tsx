@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, ApiError } from "@/lib/api/client";
 
@@ -108,6 +109,7 @@ function getPasswordStrength(password: string): { score: number; label: string; 
 }
 
 export default function SignUpPage() {
+  const router = useRouter();
   const [status, setStatus] = useState<"idle" | "submitting" | "done" | "error">("idle");
   const [message, setMessage] = useState<string | null>(null);
   const [selectedRole, setSelectedRole] = useState<string>(ROLES[0].label);
@@ -135,30 +137,16 @@ export default function SignUpPage() {
         last_name: String(form.get("lastName")),
         role: selectedRole,
       });
-      setStatus("done");
+      document.cookie = "df_setup_complete=false; path=/; max-age=31536000";
+      router.push("/workspace-setup");
     } catch (err) {
       setStatus("error");
       setMessage(err instanceof ApiError ? err.message : "Could not reach the server.");
+      setStatus("idle");
     }
   }
 
-  if (status === "done") {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-[#eef2ff] via-[#f0f4ff] to-[#f8fafc] flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold mb-2 text-gray-900">Account created</h1>
-          <p className="text-gray-600 mb-6">
-            <Link className="text-indigo-600 underline font-semibold hover:no-underline" href="/sign-in">Sign in</Link> to your workbench.
-          </p>
-        </div>
-      </div>
-    );
-  }
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-[#eef2ff] via-[#f0f4ff] to-[#f8fafc] flex flex-col">

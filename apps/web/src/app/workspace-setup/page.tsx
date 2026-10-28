@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "@/lib/session/client";
 
 function DataForgeIcon() {
   return (
@@ -70,13 +71,61 @@ const DATASETS = [
 ];
 
 export default function WorkspaceSetupPage() {
+  const router = useRouter();
+  const { user, loading } = useSession();
   const [selectedEngine, setSelectedEngine] = useState("duckdb");
-  const [workspaceName, setWorkspaceName] = useState("Acme Analytics");
-  const [workspaceDomain, setWorkspaceDomain] = useState("acme-analytics");
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceDomain, setWorkspaceDomain] = useState("");
   const [datasets, setDatasets] = useState(DATASETS);
+  const [submitting, setSubmitting] = useState(false);
 
   function toggleDataset(id: string) {
     setDatasets((prev) => prev.map((d) => (d.id === id ? { ...d, selected: !d.selected } : d)));
+  }
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/v1/workspaces", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: workspaceName,
+          slug: workspaceDomain,
+          engine: selectedEngine,
+          datasets: datasets.filter((d) => d.selected).map((d) => d.id),
+        }),
+      });
+      if (res.ok) {
+        document.cookie = "df_setup_complete=true; path=/; max-age=31536000";
+        router.push("/dashboard");
+      } else {
+        setSubmitting(false);
+      }
+    } catch {
+      setSubmitting(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-[#eef2ff] via-[#f0f4ff] to-[#f8fafc] flex items-center justify-center">
+        <div className="flex items-center gap-3 text-gray-500">
+          <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span className="text-sm">Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!workspaceName && user) {
+    setWorkspaceName(`${user.firstName}'s Workspace`);
+    setWorkspaceDomain(`${user.firstName.toLowerCase()}-workspace`);
   }
 
   return (
@@ -102,7 +151,7 @@ export default function WorkspaceSetupPage() {
       </header>
 
       <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
-        <div className="w-full max-w-[720px] bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-8 lg:p-10">
+        <form onSubmit={onSubmit} className="w-full max-w-[720px] bg-white rounded-2xl shadow-xl shadow-gray-200/50 p-8 lg:p-10">
           <div className="flex items-center gap-2.5 mb-4">
             <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
@@ -217,15 +266,15 @@ export default function WorkspaceSetupPage() {
           </div>
 
           <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
-            <button type="button" className="text-sm font-semibold text-gray-600 hover:text-gray-900 transition">
+            <button type="button" onClick={() => router.push("/dashboard")} className="text-sm font-semibold text-gray-600 hover:text-gray-900 transition">
               Skip for now
             </button>
-            <button className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-indigo-700 active:bg-indigo-800 transition-all flex items-center gap-2 text-[15px] shadow-lg shadow-indigo-600/20">
-              Initialize Workspace & Launch SQL Lab
-              <span>→</span>
+            <button type="submit" disabled={submitting || !workspaceName || !workspaceDomain} className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-indigo-700 active:bg-indigo-800 transition-all flex items-center gap-2 text-[15px] shadow-lg shadow-indigo-600/20 disabled:opacity-50 disabled:cursor-not-allowed">
+              {submitting ? "Setting up..." : "Initialize Workspace & Continue"}
+              {!submitting && <span>→</span>}
             </button>
           </div>
-        </div>
+        </form>
       </div>
 
       <footer className="bg-white/60 backdrop-blur-sm border-t border-gray-200/60 py-4">
