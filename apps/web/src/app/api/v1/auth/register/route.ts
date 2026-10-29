@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 import { createUser, getUserByEmail } from "@/lib/store";
 import { hashPassword } from "@/lib/utils/auth";
 
@@ -6,7 +7,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    if (!body.email || !body.password || !body.firstName || !body.lastName || !body.role) {
+    const firstName = body.firstName ?? body.first_name;
+    const lastName = body.lastName ?? body.last_name;
+
+    if (!body.email || !body.password || !firstName || !lastName || !body.role) {
       return NextResponse.json(
         { error: { code: "VALIDATION_ERROR", message: "Missing required fields" } },
         { status: 400 }
@@ -23,9 +27,9 @@ export async function POST(request: NextRequest) {
 
     const passwordHash = await hashPassword(body.password);
     const user = await createUser({
-      id: `user-${Date.now()}`,
-      firstName: body.firstName,
-      lastName: body.lastName,
+      id: randomUUID(),
+      firstName,
+      lastName,
       email: body.email,
       passwordHash,
       role: body.role,

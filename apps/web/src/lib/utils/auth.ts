@@ -1,18 +1,32 @@
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import * as argon2 from "@node-rs/argon2";
+import { scrypt, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 
 const scryptAsync = promisify(scrypt);
 
 export async function hashPassword(password: string): Promise<string> {
-  const salt = randomBytes(16).toString("hex");
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${buf.toString("hex")}.${salt}`;
+  return argon2.hash(password);
 }
 
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  const [hashedPassword, salt] = hash.split(".");
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return timingSafeEqual(Buffer.from(hashedPassword, "hex"), buf);
+  if (!hash) return false;
+  if (hash.startsWith("$argon2")) {
+    try {
+      return await argon2.verify(hash, password);
+    } catch {
+      return false;
+    }
+  }
+  if (hash.includes(".")) {
+    try {
+      const [hashedPassword, salt] = hash.split(".");
+      const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+      return timingSafeEqual(Buffer.from(hashedPassword, "hex"), buf);
+    } catch {
+      return false;
+    }
+  }
+  return false;
 }
 
 export interface SessionContext {

@@ -29,7 +29,14 @@ export async function POST(request: NextRequest) {
       createStarterProject: body.createStarterProject || false,
     });
 
-    return NextResponse.json(result);
+    const response = NextResponse.json(result);
+    response.cookies.set("df_setup_complete", "true", {
+      path: "/",
+      maxAge: 31536000,
+      httpOnly: false,
+      sameSite: "lax",
+    });
+    return response;
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not create workspace";
     return NextResponse.json(
