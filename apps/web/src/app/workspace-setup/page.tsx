@@ -23,14 +23,16 @@ export default function WorkspaceSetupPage() {
   const [createStarterProject, setCreateStarterProject] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    if (!loading && user && !workspaceName) {
+    if (!loading && user && !initialized) {
       setWorkspaceName(`${user.firstName}'s Workspace`);
       setWorkspaceDomain(`${user.firstName.toLowerCase()}-workspace`);
       setPrimaryGoal(user.role || "data_analyst");
+      setInitialized(true);
     }
-  }, [loading, user, workspaceName]);
+  }, [loading, user, initialized]);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -62,8 +64,8 @@ export default function WorkspaceSetupPage() {
         throw new Error(data.error?.message || "Setup failed");
       }
 
-      document.cookie = "df_setup_complete=true; path=/; max-age=31536000";
-      router.push("/dashboard");
+      document.cookie = "df_setup_complete=true; path=/; max-age=31536000; SameSite=Lax";
+      window.location.href = "/dashboard";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not complete setup");
       setSubmitting(false);
@@ -171,7 +173,7 @@ export default function WorkspaceSetupPage() {
                 />
                 <span className="text-sm text-gray-700">
                   <span className="font-semibold">Start with a recommended project</span>
-                  <span className="text-gray-600"> – We'll create a starter project tailored to your role</span>
+                  <span className="text-gray-600"> – We&apos;ll create a starter project tailored to your role</span>
                 </span>
               </label>
             </div>

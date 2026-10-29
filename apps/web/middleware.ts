@@ -8,14 +8,14 @@ export async function middleware(request: NextRequest) {
   const setupCookie = request.cookies.get("df_setup_complete");
   
   const isAuthenticated = !!sessionCookie;
-  const setupCompleted = setupCookie?.value === "true";
+  const hasCompletedSetup = setupCookie?.value === "true";
 
   const publicRoutes = ["/sign-up", "/sign-in", "/forgot-password", "/"];
   const authRoutes = ["/sign-up", "/sign-in", "/forgot-password"];
 
   if (publicRoutes.includes(pathname)) {
     if (isAuthenticated && authRoutes.includes(pathname)) {
-      return NextResponse.redirect(new URL(setupCompleted ? "/dashboard" : "/workspace-setup", request.url));
+      return NextResponse.redirect(new URL("/dashboard", request.url));
     }
     return NextResponse.next();
   }
@@ -29,13 +29,13 @@ export async function middleware(request: NextRequest) {
   }
 
   if (pathname === "/workspace-setup") {
-    if (setupCompleted) {
+    if (hasCompletedSetup) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
     return NextResponse.next();
   }
 
-  if (!setupCompleted && pathname !== "/workspace-setup") {
+  if (!hasCompletedSetup && pathname !== "/workspace-setup") {
     return NextResponse.redirect(new URL("/workspace-setup", request.url));
   }
 

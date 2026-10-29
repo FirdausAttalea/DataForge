@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserByEmail } from "@/lib/store";
+import { getUserByEmail, getWorkspacesByOwner } from "@/lib/store";
 import { verifyPassword } from "@/lib/utils/auth";
 
 export async function POST(request: NextRequest) {
@@ -21,6 +21,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const workspaces = await getWorkspacesByOwner(user.id);
+    const hasCompletedSetup = workspaces.some((w) => w.setupCompleted);
+
     const response = NextResponse.json({
       user: {
         id: user.id,
@@ -29,12 +32,20 @@ export async function POST(request: NextRequest) {
         email: user.email,
         role: user.role,
       },
+      hasCompletedSetup,
+    });
+
+    response.cookies.set("df_setup_complete", hasCompletedSetup ? "true" : "false", {
+      path: "/",
+      maxAge: 31536000,
+      sameSite: "lax",
     });
 
     response.cookies.set("df_session", `${user.id}.${Date.now()}`, {
       httpOnly: true,
       path: "/",
       maxAge: 31536000,
+      sameSite: "lax",
     });
 
     return response;
