@@ -1,7 +1,8 @@
 import { Lightbulb, SlidersHorizontal, Upload } from "lucide-react";
 import { CaseRow } from "./CaseRow";
-import type { BusinessCase } from "@/lib/mock/dashboard";
-import type { UserRole } from "@/lib/store";
+import type { BusinessCase, UserRole } from "@/lib/store";
+import { getTables } from "@/lib/store";
+import { getCaseRankForRole } from "@/lib/store/recommendations";
 
 interface CasePanelProps {
   cases: BusinessCase[];
@@ -9,6 +10,11 @@ interface CasePanelProps {
 }
 
 export function CasePanel({ cases, role }: CasePanelProps) {
+  const allTables = getTables();
+  const sorted = role
+    ? [...cases].sort((a, b) => getCaseRankForRole(a.id, role) - getCaseRankForRole(b.id, role))
+    : cases;
+
   return (
     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
       <div className="p-6 border-b border-slate-100">
@@ -25,9 +31,17 @@ export function CasePanel({ cases, role }: CasePanelProps) {
       </div>
 
       <div className="px-6">
-        {cases.map((c) => (
-          <CaseRow key={c.id} case={c} />
-        ))}
+        {sorted.map((c, i) => {
+          const tableNames = c.tableIds.map((tid: string) => allTables.find((t) => t.id === tid)?.name).filter(Boolean) as string[];
+          return (
+            <CaseRow
+              key={c.id}
+              case={c}
+              tableNames={tableNames}
+              recommended={role !== undefined && i === 0}
+            />
+          );
+        })}
       </div>
 
       <div className="bg-indigo-50 px-6 py-4 border-t border-indigo-100">

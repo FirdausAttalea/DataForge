@@ -1,63 +1,48 @@
-export type UserRole = "data_analyst" | "analytics_engineer" | "learner";
+import { cookies } from "next/headers";
+import { getUserById, getWorkspacesByOwner } from "@/lib/store";
+import type { SessionContext, UserRole } from "./types";
 
-export interface SessionUser {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  role: UserRole;
-  jobTitle?: string;
-  organization?: string;
-  avatarUrl?: string;
-}
-
-export interface Workspace {
-  id: string;
-  name: string;
-  slug: string;
-  createdAt: string;
-  setupCompleted: boolean;
-}
-
-export interface SessionContext {
-  user: SessionUser | null;
-  workspace: Workspace | null;
-  isAuthenticated: boolean;
-}
-
-export function getInitials(user: SessionUser): string {
-  return (user.firstName[0] + user.lastName[0]).toUpperCase();
-}
-
-export function getDisplayName(user: SessionUser): string {
-  return `${user.firstName} ${user.lastName}`;
-}
-
-export function getWorkspaceHostLabel(workspace: Workspace): string {
-  return `${workspace.slug}-replica-prod`;
-}
-
-export function getRoleLabel(role: UserRole): string {
-  const labels: Record<UserRole, string> = {
-    data_analyst: "Data Analyst",
-    analytics_engineer: "Analytics Engineer",
-    learner: "Learner / Career",
-  };
-  return labels[role];
-}
+export * from "./types";
 
 export async function getSession(): Promise<SessionContext> {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || ""}/api/v1/auth/me`, {
-      credentials: "include",
-      cache: "no-store",
-    });
-    if (!res.ok) return { user: null, workspace: null, isAuthenticated: false };
-    const data = await res.json();
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get("df_session");
+    if (!sessionCookie?.value) {
+      return { user: null, workspace: null, isAuthenticated: false };
+    }
+
+    const userId = sessionCookie.value.split(".")[0];
+    if (!userId) {
+      return { user: null, workspace: null, isAuthenticated: false };
+    }
+
+    const user = await getUserById(userId);
+    if (!user) {
+      return { user: null, workspace: null, isAuthenticated: false };
+    }
+
+    const workspaces = await getWorkspacesByOwner(userId);
+    const workspace = workspaces.find((w) => w.setupCompleted) ?? workspaces[0] ?? null;
+
     return {
-      user: data.user || null,
-      workspace: data.workspace || null,
-      isAuthenticated: !!data.user,
+      user: {
+        id: user.id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        role: user.role as UserRole,
+      },
+      workspace: workspace
+        ? {
+            id: workspace.id,
+            name: workspace.name,
+            slug: workspace.slug,
+            createdAt: workspace.createdAt,
+            setupCompleted: workspace.setupCompleted,
+          }
+        : null,
+      isAuthenticated: true,
     };
   } catch {
     return { user: null, workspace: null, isAuthenticated: false };

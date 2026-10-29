@@ -16,18 +16,20 @@ import {
   getOnboardingState,
   updateOnboardingState,
   getTables,
-  type Project as StoreProject,
-  type QueryExecution,
-  type Deliverable as StoreDeliverable,
+  getBusinessCases,
 } from "@/lib/store";
-import { mockBusinessCases, type Project as MockProject } from "@/lib/mock/dashboard";
+import { type Project as MockProject } from "@/lib/mock/dashboard";
 import { redirect } from "next/navigation";
 
 export default async function DashboardPage() {
   const session = await getSession();
 
-  if (!session.isAuthenticated || !session.user || !session.workspace) {
+  if (!session.isAuthenticated || !session.user) {
     redirect("/sign-in");
+  }
+
+  if (!session.workspace) {
+    redirect("/workspace-setup");
   }
 
   const user = await getUserById(session.user.id);
@@ -56,11 +58,11 @@ export default async function DashboardPage() {
   }));
 
   const activeProjects = mappedProjects.filter((p) => p.status !== "Completed");
-  const completedProjects = mappedProjects.filter((p) => p.status === "Completed");
   const inProgressCount = projects.filter((p) => p.status === "in_progress").length;
   const underReviewCount = projects.filter((p) => p.status === "under_review").length;
 
   const allTables = getTables();
+  const businessCases = getBusinessCases();
   const visibleTables = allTables.slice(0, 3);
   const hiddenTableCount = Math.max(0, allTables.length - visibleTables.length);
 
@@ -200,7 +202,7 @@ export default async function DashboardPage() {
           ) : (
             <ContinueWorking projects={activeProjects} totalCount={mappedProjects.length} />
           )}
-          <CasePanel cases={mockBusinessCases} role={user.role} />
+          <CasePanel cases={businessCases} role={user.role} />
         </div>
         <aside className="space-y-5">
           <ExecutionCluster />
