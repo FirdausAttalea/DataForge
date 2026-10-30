@@ -84,6 +84,12 @@ export function Sidebar() {
     if (href === "/dashboard") {
       return pathname === "/dashboard" || pathname === "/";
     }
+    if (href === "/sql-lab") {
+      return (
+        pathname === "/sql-lab" ||
+        Boolean(pathname?.startsWith("/projects/") && pathname.endsWith("/sql-lab"))
+      );
+    }
     return pathname?.startsWith(href);
   };
 

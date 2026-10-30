@@ -2,9 +2,9 @@ import { Sidebar } from "@/components/sidebar/Sidebar";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen w-full overflow-x-hidden bg-slate-50">
       <Sidebar />
-      <main className="flex-1 md:ml-0">{children}</main>
+      <main className="min-w-0 flex-1">{children}</main>
     </div>
   );
 }
