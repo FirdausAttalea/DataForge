@@ -87,13 +87,19 @@ export default function SignInPage() {
     setSubmitting(true);
     setMessage(null);
     try {
-      await api.login({
+      const res = (await api.login({
         email: String(form.get("email")),
         password: String(form.get("password")),
-      });
+      })) as { hasCompletedSetup?: boolean };
       
-      document.cookie = "df_setup_complete=false; path=/; max-age=31536000";
-      router.push("/workspace-setup");
+      const hasCompletedSetup = res?.hasCompletedSetup ?? false;
+      if (hasCompletedSetup) {
+        document.cookie = "df_setup_complete=true; path=/; max-age=31536000; SameSite=Lax";
+        window.location.href = "/dashboard";
+      } else {
+        document.cookie = "df_setup_complete=false; path=/; max-age=31536000; SameSite=Lax";
+        window.location.href = "/workspace-setup";
+      }
     } catch (err) {
       setMessage(err instanceof ApiError ? err.message : "Could not reach the server.");
       setSubmitting(false);

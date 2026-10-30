@@ -27,10 +27,13 @@ export default function WorkspaceSetupPage() {
 
   useEffect(() => {
     if (!loading && user && !initialized) {
+      // Prefill the form once from the async session; guarded by `initialized`.
+      /* eslint-disable react-hooks/set-state-in-effect */
       setWorkspaceName(`${user.firstName}'s Workspace`);
       setWorkspaceDomain(`${user.firstName.toLowerCase()}-workspace`);
       setPrimaryGoal(user.role || "data_analyst");
       setInitialized(true);
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [loading, user, initialized]);
 

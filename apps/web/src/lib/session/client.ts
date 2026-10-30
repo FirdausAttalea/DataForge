@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { SessionContext } from "./index";
+import type { SessionContext } from "./types";
 
 export function useSession() {
   const [session, setSession] = useState<SessionContext>({ user: null, workspace: null, isAuthenticated: false });

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ChevronUp, LogOut } from "lucide-react";
 import { useSession } from "@/lib/session/client";
-import { getInitials, getDisplayName, getRoleLabel } from "@/lib/session";
+import { getInitials, getDisplayName, getRoleLabel } from "@/lib/session/types";
 import { api } from "@/lib/api/client";
 
 export function UserCard() {
