@@ -45,11 +45,22 @@ export interface OnboardingState {
   initializedAt: string;
 }
 
+export type ColumnKey = "primary" | "foreign";
+
+export interface TableColumn {
+  name: string;
+  dataType: string;
+  key?: ColumnKey;
+}
+
 export interface TableDef {
   id: string;
   name: string;
   domain: string;
+  database: string;
+  schema: string;
   columnsSummary: string;
+  columns: TableColumn[];
   rowCount: number;
 }
 
@@ -64,6 +75,8 @@ export interface BusinessCase {
   recommendedForRoles: UserRole[];
 }
 
+export type ProjectEnvironment = "production" | "staging" | "development";
+
 export interface Project {
   id: string;
   workspaceId: string;
@@ -73,6 +86,19 @@ export interface Project {
   description: string;
   status: ProjectStatus;
   tableIds: string[];
+  /** Prototype field used by the SQL Lab environment pill. */
+  environment?: ProjectEnvironment;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SavedQuery {
+  id: string;
+  projectId: string;
+  workspaceId: string;
+  name: string;
+  title: string;
+  sql: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -103,6 +129,7 @@ export interface StoreData {
   workspaces: Workspace[];
   onboardingStates: OnboardingState[];
   projects: Project[];
+  savedQueries: SavedQuery[];
   queryExecutions: QueryExecution[];
   deliverables: Deliverable[];
 }

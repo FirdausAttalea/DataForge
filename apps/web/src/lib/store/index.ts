@@ -7,12 +7,14 @@ import type {
   Workspace,
   OnboardingState,
   Project,
+  SavedQuery,
   QueryExecution,
   Deliverable,
   StoreData,
   UserRole,
   ExperienceLevel,
   ProjectStatus,
+  ProjectEnvironment,
   DeliverableKind,
   DeliverableStatus,
 } from "./types";
@@ -23,15 +25,33 @@ export type {
   Workspace,
   OnboardingState,
   Project,
+  SavedQuery,
   QueryExecution,
   Deliverable,
   UserRole,
   ExperienceLevel,
   ProjectStatus,
+  ProjectEnvironment,
   DifficultyLevel,
   TableDef,
+  TableColumn,
+  ColumnKey,
   BusinessCase,
 } from "./types";
+
+function normalizeStore(store: StoreData): StoreData {
+  return {
+    ...store,
+    savedQueries: store.savedQueries ?? [],
+    queryExecutions: store.queryExecutions ?? [],
+  };
+}
+
+type PgError = { code?: string; message?: string };
+
+function asPgError(err: unknown): PgError {
+  return typeof err === "object" && err !== null ? (err as PgError) : {};
+}
 
 function isUuid(str: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
@@ -58,13 +78,13 @@ async function loadStore(): Promise<StoreData> {
 
   try {
     const content = await fs.readFile(STORE_FILE, "utf-8");
-    cachedStore = JSON.parse(content);
+    cachedStore = normalizeStore(JSON.parse(content) as StoreData);
     return cachedStore!;
   } catch {
     const fallbackFile = join(process.cwd(), "apps", "web", "apps", "web", "data", "store.json");
     try {
       const fallbackContent = await fs.readFile(fallbackFile, "utf-8");
-      cachedStore = JSON.parse(fallbackContent);
+      cachedStore = normalizeStore(JSON.parse(fallbackContent) as StoreData);
       await saveStore(cachedStore!);
       return cachedStore!;
     } catch {
@@ -73,6 +93,7 @@ async function loadStore(): Promise<StoreData> {
         workspaces: [],
         onboardingStates: [],
         projects: [],
+        savedQueries: [],
         queryExecutions: [],
         deliverables: [],
       };
@@ -115,11 +136,11 @@ export async function createUser(user: Omit<User, "createdAt">): Promise<User> {
     store.users.push(newUser);
     await saveStore(store);
     return newUser;
-  } catch (err: any) {
-    if (err?.code === "23505") {
+  } catch (err) {
+    if (asPgError(err).code === "23505") {
       throw new Error("User already exists");
     }
-    console.error("Postgres error in createUser, falling back to file store:", err?.message);
+    console.error("Postgres error in createUser, falling back to file store:", asPgError(err).message);
     const store = await loadStore();
     if (store.users.some((u) => u.email.toLowerCase() === user.email.toLowerCase())) {
       throw new Error("User already exists");
@@ -150,8 +171,8 @@ export async function getUserByEmail(email: string): Promise<User | null> {
         createdAt: new Date(row.created_at).toISOString(),
       };
     }
-  } catch (err: any) {
-    console.error("Postgres error in getUserByEmail:", err?.message);
+  } catch (err) {
+    console.error("Postgres error in getUserByEmail:", asPgError(err).message);
   }
   const store = await loadStore();
   return store.users.find((u) => u.email.toLowerCase() === email.toLowerCase()) || null;
@@ -176,8 +197,8 @@ export async function getUserById(id: string): Promise<User | null> {
         createdAt: new Date(row.created_at).toISOString(),
       };
     }
-  } catch (err: any) {
-    console.error("Postgres error in getUserById:", err?.message);
+  } catch (err) {
+    console.error("Postgres error in getUserById:", asPgError(err).message);
   }
   const store = await loadStore();
   return store.users.find((u) => u.id === id) || null;
@@ -228,11 +249,11 @@ export async function createWorkspace(workspace: Omit<Workspace, "id" | "created
       await saveStore(store);
       return newWs;
     }
-  } catch (err: any) {
-    if (err?.code === "23505") {
+  } catch (err) {
+    if (asPgError(err).code === "23505") {
       throw new Error("Workspace slug already exists");
     }
-    console.error("Postgres error in createWorkspace:", err?.message);
+    console.error("Postgres error in createWorkspace:", asPgError(err).message);
   }
 
   const store = await loadStore();
@@ -265,8 +286,8 @@ export async function getWorkspaceById(id: string): Promise<Workspace | null> {
         createdAt: new Date(row.created_at).toISOString(),
       };
     }
-  } catch (err: any) {
-    console.error("Postgres error in getWorkspaceById:", err?.message);
+  } catch (err) {
+    console.error("Postgres error in getWorkspaceById:", asPgError(err).message);
   }
   const store = await loadStore();
   return store.workspaces.find((w) => w.id === id) || null;
@@ -290,8 +311,8 @@ export async function getWorkspacesByOwner(ownerId: string): Promise<Workspace[]
         createdAt: new Date(row.created_at).toISOString(),
       }));
     }
-  } catch (err: any) {
-    console.error("Postgres error in getWorkspacesByOwner:", err?.message);
+  } catch (err) {
+    console.error("Postgres error in getWorkspacesByOwner:", asPgError(err).message);
   }
   const store = await loadStore();
   return store.workspaces.filter((w) => w.ownerId === ownerId);
@@ -300,7 +321,7 @@ export async function getWorkspacesByOwner(ownerId: string): Promise<Workspace[]
 export async function updateWorkspace(id: string, updates: Partial<Workspace>): Promise<Workspace | null> {
   try {
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
     let idx = 1;
 
     if (updates.name !== undefined) {
@@ -344,8 +365,8 @@ export async function updateWorkspace(id: string, updates: Partial<Workspace>): 
         };
       }
     }
-  } catch (err: any) {
-    console.error("Postgres error in updateWorkspace:", err?.message);
+  } catch (err) {
+    console.error("Postgres error in updateWorkspace:", asPgError(err).message);
   }
 
   const store = await loadStore();
@@ -385,8 +406,8 @@ export async function createOnboardingState(
       await saveStore(store);
       return newOnb;
     }
-  } catch (err: any) {
-    console.error("Postgres error in createOnboardingState:", err?.message);
+  } catch (err) {
+    console.error("Postgres error in createOnboardingState:", asPgError(err).message);
   }
 
   const store = await loadStore();
@@ -417,8 +438,8 @@ export async function getOnboardingState(userId: string, workspaceId: string): P
         initializedAt: new Date(row.initialized_at).toISOString(),
       };
     }
-  } catch (err: any) {
-    console.error("Postgres error in getOnboardingState:", err?.message);
+  } catch (err) {
+    console.error("Postgres error in getOnboardingState:", asPgError(err).message);
   }
   const store = await loadStore();
   return store.onboardingStates.find((s) => s.userId === userId && s.workspaceId === workspaceId) || null;
@@ -430,7 +451,7 @@ export async function updateOnboardingState(
 ): Promise<OnboardingState | null> {
   try {
     const fields: string[] = [];
-    const values: any[] = [];
+    const values: unknown[] = [];
     let idx = 1;
 
     if (updates.steps !== undefined) {
@@ -460,8 +481,8 @@ export async function updateOnboardingState(
         };
       }
     }
-  } catch (err: any) {
-    console.error("Postgres error in updateOnboardingState:", err?.message);
+  } catch (err) {
+    console.error("Postgres error in updateOnboardingState:", asPgError(err).message);
   }
 
   const store = await loadStore();
@@ -505,6 +526,7 @@ export async function createProject(project: Omit<Project, "id" | "createdAt" | 
         description: row.description || "",
         status: (row.status || "draft") as ProjectStatus,
         tableIds: row.table_ids || [],
+        environment: (row.environment || "production") as ProjectEnvironment,
         createdAt: new Date(row.created_at).toISOString(),
         updatedAt: new Date(row.updated_at).toISOString(),
       };
@@ -513,13 +535,14 @@ export async function createProject(project: Omit<Project, "id" | "createdAt" | 
       await saveStore(store);
       return newProj;
     }
-  } catch (err: any) {
-    console.error("Postgres error in createProject:", err?.message);
+  } catch (err) {
+    console.error("Postgres error in createProject:", asPgError(err).message);
   }
 
   const store = await loadStore();
   const newProject: Project = {
     ...project,
+    environment: project.environment ?? "production",
     id: projId,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -543,12 +566,13 @@ export async function getProjectById(id: string): Promise<Project | null> {
         description: row.description || "",
         status: (row.status || "draft") as ProjectStatus,
         tableIds: row.table_ids || [],
+        environment: (row.environment || "production") as ProjectEnvironment,
         createdAt: new Date(row.created_at).toISOString(),
         updatedAt: new Date(row.updated_at).toISOString(),
       };
     }
-  } catch (err: any) {
-    console.error("Postgres error in getProjectById:", err?.message);
+  } catch (err) {
+    console.error("Postgres error in getProjectById:", asPgError(err).message);
   }
   const store = await loadStore();
   return store.projects.find((p) => p.id === id) || null;
@@ -570,12 +594,13 @@ export async function getProjectsByWorkspace(workspaceId: string): Promise<Proje
         description: row.description || "",
         status: (row.status || "draft") as ProjectStatus,
         tableIds: row.table_ids || [],
+        environment: (row.environment || "production") as ProjectEnvironment,
         createdAt: new Date(row.created_at).toISOString(),
         updatedAt: new Date(row.updated_at).toISOString(),
       }));
     }
-  } catch (err: any) {
-    console.error("Postgres error in getProjectsByWorkspace:", err?.message);
+  } catch (err) {
+    console.error("Postgres error in getProjectsByWorkspace:", asPgError(err).message);
   }
   const store = await loadStore();
   return store.projects.filter((p) => p.workspaceId === workspaceId);
@@ -618,8 +643,8 @@ export async function createQueryExecution(
     store.queryExecutions.push(newExec);
     await saveStore(store);
     return newExec;
-  } catch (err: any) {
-    console.error("Postgres error in createQueryExecution:", err?.message);
+  } catch (err) {
+    console.error("Postgres error in createQueryExecution:", asPgError(err).message);
   }
 
   const store = await loadStore();
@@ -651,11 +676,63 @@ export async function getExecutionsByWorkspace(workspaceId: string): Promise<Que
         executedAt: new Date(row.executed_at).toISOString(),
       }));
     }
-  } catch (err: any) {
-    console.error("Postgres error in getExecutionsByWorkspace:", err?.message);
+  } catch (err) {
+    console.error("Postgres error in getExecutionsByWorkspace:", asPgError(err).message);
   }
   const store = await loadStore();
   return store.queryExecutions.filter((e) => e.workspaceId === workspaceId);
+}
+
+// ==========================================
+// Saved SQL Lab queries (prototype, file-backed)
+// ==========================================
+export async function getSavedQueriesByProject(projectId: string): Promise<SavedQuery[]> {
+  const store = await loadStore();
+  return store.savedQueries
+    .filter((query) => query.projectId === projectId)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+export async function getSavedQueryByProject(projectId: string): Promise<SavedQuery | null> {
+  const queries = await getSavedQueriesByProject(projectId);
+  return queries[0] ?? null;
+}
+
+export async function getSavedQueryById(id: string): Promise<SavedQuery | null> {
+  const store = await loadStore();
+  return store.savedQueries.find((query) => query.id === id) ?? null;
+}
+
+export async function createSavedQuery(
+  query: Omit<SavedQuery, "id" | "createdAt" | "updatedAt">
+): Promise<SavedQuery> {
+  const store = await loadStore();
+  const now = new Date().toISOString();
+  const saved: SavedQuery = {
+    ...query,
+    id: `sq-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: now,
+    updatedAt: now,
+  };
+  store.savedQueries.push(saved);
+  await saveStore(store);
+  return saved;
+}
+
+export async function updateSavedQuery(
+  id: string,
+  updates: Pick<SavedQuery, "name" | "title" | "sql">
+): Promise<SavedQuery | null> {
+  const store = await loadStore();
+  const index = store.savedQueries.findIndex((query) => query.id === id);
+  if (index === -1) return null;
+  store.savedQueries[index] = {
+    ...store.savedQueries[index],
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+  await saveStore(store);
+  return store.savedQueries[index];
 }
 
 // ==========================================
@@ -693,8 +770,8 @@ export async function createDeliverable(
     store.deliverables.push(newDeliv);
     await saveStore(store);
     return newDeliv;
-  } catch (err: any) {
-    console.error("Postgres error in createDeliverable:", err?.message);
+  } catch (err) {
+    console.error("Postgres error in createDeliverable:", asPgError(err).message);
   }
 
   const store = await loadStore();
@@ -725,8 +802,8 @@ export async function getDeliverablesByWorkspace(workspaceId: string): Promise<D
         updatedAt: new Date(row.updated_at).toISOString(),
       }));
     }
-  } catch (err: any) {
-    console.error("Postgres error in getDeliverablesByWorkspace:", err?.message);
+  } catch (err) {
+    console.error("Postgres error in getDeliverablesByWorkspace:", asPgError(err).message);
   }
   const store = await loadStore();
   return store.deliverables.filter((d) => d.workspaceId === workspaceId);
