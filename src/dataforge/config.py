@@ -8,7 +8,9 @@ class Settings(BaseSettings):
     postgres_password: str = "postgres"
     postgres_db: str = "dataforge"
     postgres_host: str = "localhost"
-    postgres_port: int = 5432
+    postgres_port: int = 55432
+    # Shared secret used by the Next.js server when proxying SQL Lab queries.
+    sql_lab_internal_token: str = "dataforge-local-dev"
 
     @property
     def database_url(self) -> str:

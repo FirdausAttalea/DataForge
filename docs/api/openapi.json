@@ -35,6 +35,32 @@
         "title": "LoginRequest",
         "type": "object"
       },
+      "QueryRequest": {
+        "properties": {
+          "projectId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projectid"
+          },
+          "sql": {
+            "maxLength": 20000,
+            "minLength": 1,
+            "title": "Sql",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sql"
+        ],
+        "title": "QueryRequest",
+        "type": "object"
+      },
       "RegisterRequest": {
         "properties": {
           "email": {
@@ -42,16 +68,37 @@
             "title": "Email",
             "type": "string"
           },
+          "first_name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "First Name",
+            "type": "string"
+          },
+          "last_name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Last Name",
+            "type": "string"
+          },
           "password": {
             "maxLength": 128,
             "minLength": 12,
             "title": "Password",
             "type": "string"
+          },
+          "role": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Role",
+            "type": "string"
           }
         },
         "required": [
           "email",
-          "password"
+          "password",
+          "first_name",
+          "last_name",
+          "role"
         ],
         "title": "RegisterRequest",
         "type": "object"
@@ -62,14 +109,29 @@
             "title": "Email",
             "type": "string"
           },
+          "first_name": {
+            "title": "First Name",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
+            "type": "string"
+          },
+          "last_name": {
+            "title": "Last Name",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
             "type": "string"
           }
         },
         "required": [
           "id",
-          "email"
+          "email",
+          "first_name",
+          "last_name",
+          "role"
         ],
         "title": "UserOut",
         "type": "object"
@@ -324,6 +386,67 @@
         "summary": "Register",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/api/v1/sql-lab/query": {
+      "post": {
+        "operationId": "run_query_api_v1_sql_lab_query_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-DataForge-Internal",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Dataforge-Internal"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QueryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Run Query Api V1 Sql Lab Query Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Query",
+        "tags": [
+          "sql-lab"
         ]
       }
     },

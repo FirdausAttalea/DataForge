@@ -1,15 +1,17 @@
 from fastapi import FastAPI, Response
 from sqlalchemy import create_engine, text
-from dataforge.routes.auth import router as auth_router
 
 from dataforge.config import settings
 from dataforge.error_handlers import register_error_handlers
+from dataforge.routes.auth import router as auth_router
+from dataforge.routes.sql_lab import router as sql_lab_router
 
 app = FastAPI(title="DataForge API", version="0.1.0")
 
 register_error_handlers(app)
 
 app.include_router(auth_router)
+app.include_router(sql_lab_router)
 
 def check_postgres() -> bool:
     engine = create_engine(settings.database_url, pool_pre_ping=True)
@@ -26,7 +28,7 @@ def health(response: Response) -> dict:
     checks: dict[str, str] = {}
     try:
         checks["postgres"] = "ok" if check_postgres() else "error"
-    except Exception:
+    except Exception:  # noqa: BLE001 - health checks must not leak connection details
         # Never return the exception text: it can contain the connection string.
         checks["postgres"] = "error"
 
