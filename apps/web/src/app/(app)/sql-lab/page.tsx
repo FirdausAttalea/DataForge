@@ -1,22 +1,18 @@
-export default function SQLLabPage() {
-  return (
-    <div className="p-6 md:p-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">SQL Lab</h1>
-        <p className="text-slate-600">Write and execute SQL queries against your datasets.</p>
-      </div>
+import { redirect } from "next/navigation";
+import { getSession } from "@/lib/session";
+import { getProjectsByWorkspace, getWorkspacesByOwner } from "@/lib/store";
 
-      <div className="bg-white border border-slate-200 rounded-xl p-12 text-center">
-        <div className="w-12 h-12 bg-indigo-50 rounded-lg flex items-center justify-center mx-auto mb-4">
-          <svg className="w-6 h-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        <h2 className="text-lg font-bold text-slate-900 mb-2">Coming soon in this prototype</h2>
-        <p className="text-slate-600 text-sm max-w-md mx-auto">
-          The SQL Lab is under development. This is where you can write and test SQL queries.
-        </p>
-      </div>
-    </div>
-  );
+export default async function SqlLabIndexPage() {
+  const session = await getSession();
+  if (!session.user) redirect("/sign-in");
+  if (!session.workspace) redirect("/workspace-setup");
+
+  const workspaces = await getWorkspacesByOwner(session.user.id);
+  const workspace = workspaces.find((candidate) => candidate.id === session.workspace!.id);
+  if (!workspace) redirect("/workspace-setup");
+
+  const projects = await getProjectsByWorkspace(workspace.id);
+  if (projects.length === 0) redirect("/projects");
+
+  redirect(`/projects/${projects[0].id}/sql-lab`);
 }
