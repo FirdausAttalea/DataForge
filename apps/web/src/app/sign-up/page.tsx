@@ -149,7 +149,7 @@ export default function SignUpPage() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#eef2ff] via-[#f0f4ff] to-[#f8fafc] flex flex-col">
+    <div className="min-h-screen flex flex-col">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60">
         <div className="max-w-[1400px] mx-auto px-6 py-3.5 flex justify-between items-center">
