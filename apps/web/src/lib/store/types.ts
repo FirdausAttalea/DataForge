@@ -124,6 +124,34 @@ export interface Deliverable {
   updatedAt: string;
 }
 
+export interface SavedViewSort {
+  field: string;
+  direction: "asc" | "desc";
+}
+
+export interface SavedViewFilter {
+  field: string;
+  operator: ">" | "<" | "=" | ">=" | "<=";
+  value: number;
+}
+
+export interface SavedView {
+  id: string;
+  projectId: string;
+  workspaceId: string;
+  ownerId: string;
+  title: string;
+  chartType: "bar" | "line" | "area" | "scatter" | "donut" | "heatmap";
+  xField: string;
+  yField: string;
+  aggregation: "SUM" | "AVG" | "COUNT" | "MIN" | "MAX";
+  colorField?: string;
+  sort: SavedViewSort;
+  filter?: SavedViewFilter | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface StoreData {
   users: User[];
   workspaces: Workspace[];
@@ -132,4 +160,5 @@ export interface StoreData {
   savedQueries: SavedQuery[];
   queryExecutions: QueryExecution[];
   deliverables: Deliverable[];
+  savedViews: SavedView[];
 }
