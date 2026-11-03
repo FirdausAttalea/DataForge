@@ -98,6 +98,12 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           >
             Open in SQL Lab
           </Link>
+          <Link
+            href={`/projects/${project.id}/insights`}
+            className="border border-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-50 transition"
+          >
+            Insights & Charts
+          </Link>
           {businessCase && (
             <Link
               href={`/cases/${businessCase.id}`}
