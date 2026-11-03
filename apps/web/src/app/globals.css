@@ -5,12 +5,20 @@
   --foreground: #171717;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --bg-base: #f8fafd;
+  --bg-glow-tl: #e9ecfa;
+  --bg-glow-mr: #eef3fe;
+  --bg-glow-bc: #eff3fd;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --bg-base: #ffffff;
+    --bg-glow-tl: #f5f5f5;
+    --bg-glow-mr: #f0f0f0;
+    --bg-glow-bc: #ebebeb;
   }
 }
 
@@ -19,4 +27,35 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   overflow-x: hidden;
+}
+
+@layer utilities {
+  .bg-ambient {
+    background-color: var(--bg-base);
+    background-image:
+      radial-gradient(circle at 5% 10%, var(--bg-glow-tl) 0%, transparent 35%),
+      radial-gradient(circle at 95% 50%, var(--bg-glow-mr) 0%, transparent 40%),
+      radial-gradient(circle at 45% 95%, var(--bg-glow-bc) 0%, transparent 40%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+  
+  @media (max-width: 768px) {
+    .bg-ambient {
+      background-attachment: scroll;
+    }
+  }
+  
+  @media print {
+    .bg-ambient {
+      background-color: #ffffff;
+      background-image: none;
+    }
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #ffffff !important;
+  }
 }
