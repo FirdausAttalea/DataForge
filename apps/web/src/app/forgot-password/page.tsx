@@ -40,7 +40,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#eef2ff] via-[#f0f4ff] to-[#f8fafc] flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4">
       <div className="absolute top-6 left-6 flex items-center gap-2.5">
         <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
           <DataForgeIcon />
