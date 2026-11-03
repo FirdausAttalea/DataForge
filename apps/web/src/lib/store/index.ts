@@ -43,6 +43,7 @@ function normalizeStore(store: StoreData): StoreData {
   return {
     ...store,
     savedQueries: store.savedQueries ?? [],
+    savedViews: store.savedViews ?? [],
     queryExecutions: store.queryExecutions ?? [],
   };
 }
@@ -94,6 +95,7 @@ async function loadStore(): Promise<StoreData> {
         onboardingStates: [],
         projects: [],
         savedQueries: [],
+        savedViews: [],
         queryExecutions: [],
         deliverables: [],
       };
