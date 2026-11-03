@@ -9,7 +9,7 @@ import type {
   QueryTab,
   RunStatus,
 } from "@/lib/sqllab/types";
-import { DEMO_ENGINE } from "@/lib/sqllab/fixtures";
+import { DEMO_SQL, DEMO_QUERY_TITLE, DEMO_ENGINE } from "@/lib/sqllab/fixtures";
 import { checkBasicSyntax, DEFAULT_LIMIT, formatSqlBasic, type CursorPosition } from "@/lib/sqllab/sql";
 import { formatRelativeTime } from "@/lib/sqllab/results";
 import { useQueryRunner, type RunOutcome } from "@/lib/sqllab/use-query-runner";
@@ -98,7 +98,9 @@ export function SqlLabShell({
 }: SqlLabShellProps) {
   const router = useRouter();
   const modifier = usePlatformModifier();
+  
   const [tabs, setTabs] = useState<QueryTab[]>(() => makeInitialTabs(initialSavedQuery));
+
   const [activeTabId, setActiveTabId] = useState(() => tabs[0].id);
   const [selectedTableId, setSelectedTableId] = useState(() => {
     const preferred = tables.find((table) => table.name === "orders") ?? tables[0];
@@ -134,6 +136,54 @@ export function SqlLabShell({
     const timer = setTimeout(() => setNotice(null), 4500);
     return () => clearTimeout(timer);
   }, [notice]);
+
+  const saveTab = useCallback(
+    async (tab: QueryTab, manual: boolean) => {
+      setSaveError(null);
+      try {
+        const response = await fetch("/api/v1/sql-lab/saved-queries", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            id: tab.savedQueryId,
+            projectId: project.id,
+            name: tab.name,
+            title: tab.title,
+            sql: tab.sql,
+          }),
+        });
+        if (!response.ok) throw new Error("Could not save query");
+        const data = (await response.json()) as { savedQuery: SavedQuery };
+        setTabs((current) =>
+          current.map((candidate) =>
+            candidate.id === tab.id
+              ? {
+                  ...candidate,
+                  savedQueryId: data.savedQuery.id,
+                  savedSql: data.savedQuery.sql,
+                  name: data.savedQuery.name,
+                  title: data.savedQuery.title,
+                  updatedAt: data.savedQuery.updatedAt,
+                }
+              : candidate
+          )
+        );
+        setSaveMode(manual ? "manual" : "auto");
+        setAnnouncement(manual ? "Query saved." : "Query auto-saved.");
+      } catch {
+        setSaveError("Save failed. The query buffer is still here; try again.");
+        setNotice("Save failed. Your changes are still in the editor.");
+      }
+    },
+    [project.id]
+  );
+
+  useEffect(() => {
+    if (!initialSavedQuery && tabs.length === 1 && tabs[0].sql && !tabs[0].savedQueryId) {
+      void saveTab(tabs[0], false);
+    }
+  }, [initialSavedQuery, tabs, saveTab]);
 
   const logExecution = useCallback(
     async (outcome: RunOutcome, sql: string) => {
@@ -254,48 +304,6 @@ export function SqlLabShell({
     });
   }
 
-  const saveTab = useCallback(
-    async (tab: QueryTab, manual: boolean) => {
-      setSaveError(null);
-      try {
-        const response = await fetch("/api/v1/sql-lab/saved-queries", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            id: tab.savedQueryId,
-            projectId: project.id,
-            name: tab.name,
-            title: tab.title,
-            sql: tab.sql,
-          }),
-        });
-        if (!response.ok) throw new Error("Could not save query");
-        const data = (await response.json()) as { savedQuery: SavedQuery };
-        setTabs((current) =>
-          current.map((candidate) =>
-            candidate.id === tab.id
-              ? {
-                  ...candidate,
-                  savedQueryId: data.savedQuery.id,
-                  savedSql: data.savedQuery.sql,
-                  name: data.savedQuery.name,
-                  title: data.savedQuery.title,
-                  updatedAt: data.savedQuery.updatedAt,
-                }
-              : candidate
-          )
-        );
-        setSaveMode(manual ? "manual" : "auto");
-        setAnnouncement(manual ? "Query saved." : "Query auto-saved.");
-      } catch {
-        setSaveError("Save failed. The query buffer is still here; try again.");
-        setNotice("Save failed. Your changes are still in the editor.");
-      }
-    },
-    [project.id]
-  );
-
   function saveActive(manual = true) {
     if (!activeTab) return;
     void saveTab(activeTab, manual);
@@ -344,9 +352,15 @@ export function SqlLabShell({
     setAnnouncement("Execution SQL loaded into the editor.");
   }
 
-  function visualize() {
-    if (dirty && !confirmDiscardChanges()) return;
-    router.push(`/insights?projectId=${encodeURIComponent(project.id)}`);
+  async function visualize() {
+    if (activeTab && activeTab.sql.trim().length > 0 && (!activeTab.savedQueryId || dirty)) {
+      try {
+        await saveTab(activeTab, false);
+      } catch {
+        // proceed even if background save errors
+      }
+    }
+    router.push(`/projects/${project.id}/insights`);
   }
 
   function formatActive() {
@@ -394,7 +408,7 @@ export function SqlLabShell({
   );
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen">
       <SqlLabTopBar
         workspaceName={workspaceName}
         projectTitle={project.title}
@@ -421,6 +435,16 @@ export function SqlLabShell({
           onSave={() => saveActive(true)}
           onFormat={formatActive}
           onHistory={() => setHistoryOpen(true)}
+          onTitleChange={(newTitle) => {
+            if (activeTab) {
+              setTabs((prev) =>
+                prev.map((tab) =>
+                  tab.id === activeTab.id ? { ...tab, title: newTitle } : tab
+                )
+              );
+              saveActive(true);
+            }
+          }}
         />
 
         {saveError && (
