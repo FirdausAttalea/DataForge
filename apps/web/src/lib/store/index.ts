@@ -686,9 +686,29 @@ export async function getExecutionsByWorkspace(workspaceId: string): Promise<Que
 }
 
 // ==========================================
-// Saved SQL Lab queries (prototype, file-backed)
+// Saved SQL Lab queries (Postgres backed with JSON fallback)
 // ==========================================
 export async function getSavedQueriesByProject(projectId: string): Promise<SavedQuery[]> {
+  try {
+    const res = await pool.query(
+      `SELECT id, project_id AS "projectId", workspace_id AS "workspaceId",
+              name, title, sql, created_at AS "createdAt", updated_at AS "updatedAt"
+       FROM saved_queries
+       WHERE project_id = $1
+       ORDER BY updated_at DESC`,
+      [projectId]
+    );
+    if (res.rows.length > 0) {
+      return res.rows.map((row) => ({
+        ...row,
+        createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : String(row.createdAt),
+        updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : String(row.updatedAt),
+      }));
+    }
+  } catch (err) {
+    console.error("Postgres error in getSavedQueriesByProject:", asPgError(err).message);
+  }
+
   const store = await loadStore();
   return store.savedQueries
     .filter((query) => query.projectId === projectId)
@@ -701,6 +721,26 @@ export async function getSavedQueryByProject(projectId: string): Promise<SavedQu
 }
 
 export async function getSavedQueryById(id: string): Promise<SavedQuery | null> {
+  try {
+    const res = await pool.query(
+      `SELECT id, project_id AS "projectId", workspace_id AS "workspaceId",
+              name, title, sql, created_at AS "createdAt", updated_at AS "updatedAt"
+       FROM saved_queries
+       WHERE id = $1`,
+      [id]
+    );
+    if (res.rows.length > 0) {
+      const row = res.rows[0];
+      return {
+        ...row,
+        createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : String(row.createdAt),
+        updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : String(row.updatedAt),
+      };
+    }
+  } catch (err) {
+    console.error("Postgres error in getSavedQueryById:", asPgError(err).message);
+  }
+
   const store = await loadStore();
   return store.savedQueries.find((query) => query.id === id) ?? null;
 }
@@ -708,14 +748,45 @@ export async function getSavedQueryById(id: string): Promise<SavedQuery | null> 
 export async function createSavedQuery(
   query: Omit<SavedQuery, "id" | "createdAt" | "updatedAt">
 ): Promise<SavedQuery> {
-  const store = await loadStore();
   const now = new Date().toISOString();
+  const id = `sq-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const saved: SavedQuery = {
     ...query,
-    id: `sq-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id,
     createdAt: now,
     updatedAt: now,
   };
+
+  try {
+    const res = await pool.query(
+      `INSERT INTO saved_queries (id, project_id, workspace_id, name, title, sql, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, project_id AS "projectId", workspace_id AS "workspaceId",
+                 name, title, sql, created_at AS "createdAt", updated_at AS "updatedAt"`,
+      [saved.id, saved.projectId, saved.workspaceId, saved.name, saved.title, saved.sql, saved.createdAt, saved.updatedAt]
+    );
+    if (res.rows[0]) {
+      const row = res.rows[0];
+      const result: SavedQuery = {
+        ...row,
+        createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : String(row.createdAt),
+        updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : String(row.updatedAt),
+      };
+      // Keep JSON store in sync as fallback
+      try {
+        const store = await loadStore();
+        store.savedQueries.push(result);
+        await saveStore(store);
+      } catch {
+        // ignore JSON sync error
+      }
+      return result;
+    }
+  } catch (err) {
+    console.error("Postgres error in createSavedQuery:", asPgError(err).message);
+  }
+
+  const store = await loadStore();
   store.savedQueries.push(saved);
   await saveStore(store);
   return saved;
@@ -725,13 +796,46 @@ export async function updateSavedQuery(
   id: string,
   updates: Pick<SavedQuery, "name" | "title" | "sql">
 ): Promise<SavedQuery | null> {
+  const now = new Date().toISOString();
+  try {
+    const res = await pool.query(
+      `UPDATE saved_queries
+       SET name = $1, title = $2, sql = $3, updated_at = $4
+       WHERE id = $5
+       RETURNING id, project_id AS "projectId", workspace_id AS "workspaceId",
+                 name, title, sql, created_at AS "createdAt", updated_at AS "updatedAt"`,
+      [updates.name, updates.title, updates.sql, now, id]
+    );
+    if (res.rows[0]) {
+      const row = res.rows[0];
+      const result: SavedQuery = {
+        ...row,
+        createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : String(row.createdAt),
+        updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : String(row.updatedAt),
+      };
+      try {
+        const store = await loadStore();
+        const index = store.savedQueries.findIndex((q) => q.id === id);
+        if (index !== -1) {
+          store.savedQueries[index] = result;
+          await saveStore(store);
+        }
+      } catch {
+        // ignore JSON sync error
+      }
+      return result;
+    }
+  } catch (err) {
+    console.error("Postgres error in updateSavedQuery:", asPgError(err).message);
+  }
+
   const store = await loadStore();
   const index = store.savedQueries.findIndex((query) => query.id === id);
   if (index === -1) return null;
   store.savedQueries[index] = {
     ...store.savedQueries[index],
     ...updates,
-    updatedAt: new Date().toISOString(),
+    updatedAt: now,
   };
   await saveStore(store);
   return store.savedQueries[index];
