@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { FileCode2, History, Play, Save, Wand2 } from "lucide-react";
 import type { TableDef } from "@/lib/store";
 import { Kbd } from "./Kbd";
@@ -20,6 +21,7 @@ interface QueryHeaderProps {
   onSave: () => void;
   onFormat: () => void;
   onHistory: () => void;
+  onTitleChange?: (newTitle: string) => void;
 }
 
 export function QueryHeader({
@@ -36,7 +38,28 @@ export function QueryHeader({
   onSave,
   onFormat,
   onHistory,
+  onTitleChange,
 }: QueryHeaderProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(title);
+
+  const handleTitleBlur = () => {
+    if (editTitle.trim() && editTitle !== title) {
+      onTitleChange?.(editTitle.trim());
+    }
+    setEditTitle(title);
+    setIsEditing(false);
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleTitleBlur();
+    } else if (e.key === "Escape") {
+      setEditTitle(title);
+      setIsEditing(false);
+    }
+  };
+
   return (
     <section
       aria-labelledby="query-header-title"
@@ -48,9 +71,30 @@ export function QueryHeader({
             <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
               <FileCode2 size={19} aria-hidden="true" />
             </span>
-            <h1 id="query-header-title" className="text-lg font-bold text-slate-900">
-              {title}
-            </h1>
+            {isEditing ? (
+              <input
+                id="query-header-title"
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                onBlur={handleTitleBlur}
+                onKeyDown={handleTitleKeyDown}
+                autoFocus
+                className="rounded px-2 py-1 text-lg font-bold text-slate-900 border border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            ) : (
+              <h1
+                id="query-header-title"
+                className="text-lg font-bold text-slate-900 cursor-pointer hover:text-indigo-600 transition"
+                onClick={() => {
+                  setIsEditing(true);
+                  setEditTitle(title);
+                }}
+                title="Click to edit"
+              >
+                {title}
+              </h1>
+            )}
             {saveStatus && (
               <span className="whitespace-nowrap rounded-full bg-indigo-50 px-2.5 py-1 text-[11px] font-semibold text-indigo-600">
                 {saveStatus}
