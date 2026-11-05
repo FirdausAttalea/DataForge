@@ -5,6 +5,9 @@ from dataforge.config import settings
 from dataforge.error_handlers import register_error_handlers
 from dataforge.routes.auth import router as auth_router
 from dataforge.routes.sql_lab import router as sql_lab_router
+from dataforge.routes.charts import router as charts_router
+from dataforge.routes.queries import router as queries_router
+from dataforge.routes.snapshots import router as snapshots_router
 
 app = FastAPI(title="DataForge API", version="0.1.0")
 
@@ -12,6 +15,9 @@ register_error_handlers(app)
 
 app.include_router(auth_router)
 app.include_router(sql_lab_router)
+app.include_router(charts_router)
+app.include_router(queries_router)
+app.include_router(snapshots_router)
 
 def check_postgres() -> bool:
     engine = create_engine(settings.database_url, pool_pre_ping=True)
