@@ -1,13 +1,15 @@
 "use client";
 
 import type { QueryResult } from "@/lib/sqllab/types";
+import type { ChartType } from "./ChartFormatPicker";
 import ChartRenderer from "./ChartRenderer";
 
 interface ChartCardProps {
   queryResult: QueryResult;
-  chartType?: "bar" | "line" | "pie";
+  chartType?: ChartType;
   xField?: string;
   yField?: string;
+  colorField?: string;
 }
 
 export default function ChartCard({
@@ -15,6 +17,7 @@ export default function ChartCard({
   chartType = "bar",
   xField,
   yField,
+  colorField,
 }: ChartCardProps) {
   if (!xField || !yField) {
     return (
@@ -36,6 +39,7 @@ export default function ChartCard({
           queryResult={queryResult}
           xField={xField}
           yField={yField}
+          colorField={colorField}
         />
       </div>
     </div>
