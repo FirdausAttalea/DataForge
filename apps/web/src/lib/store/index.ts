@@ -841,6 +841,49 @@ export async function updateSavedQuery(
   return store.savedQueries[index];
 }
 
+export async function deleteSavedQuery(id: string): Promise<boolean> {
+  try {
+    const res = await pool.query(
+      `DELETE FROM saved_queries WHERE id = $1`,
+      [id]
+    );
+    if (res.rowCount === 0) {
+      // not in postgres, try JSON store
+      const store = await loadStore();
+      const index = store.savedQueries.findIndex((q) => q.id === id);
+      if (index !== -1) {
+        store.savedQueries.splice(index, 1);
+        await saveStore(store);
+        return true;
+      }
+      return false;
+    }
+    // deleted from postgres, also remove from JSON store
+    try {
+      const store = await loadStore();
+      const index = store.savedQueries.findIndex((q) => q.id === id);
+      if (index !== -1) {
+        store.savedQueries.splice(index, 1);
+        await saveStore(store);
+      }
+    } catch {
+      // ignore JSON sync error
+    }
+    return true;
+  } catch (err) {
+    console.error("Postgres error in deleteSavedQuery:", asPgError(err).message);
+    // Try JSON store fallback
+    const store = await loadStore();
+    const index = store.savedQueries.findIndex((q) => q.id === id);
+    if (index !== -1) {
+      store.savedQueries.splice(index, 1);
+      await saveStore(store);
+      return true;
+    }
+    return false;
+  }
+}
+
 // ==========================================
 // Deliverables
 // ==========================================
