@@ -181,7 +181,9 @@ export async function executeQuery(
   options: ExecuteQueryOptions = {}
 ): Promise<QueryResult> {
   if (options.projectId) {
-    return createSqlExecutor(options.projectId).execute(sql, options);
+    const result = await createSqlExecutor(options.projectId).execute(sql, options);
+    console.log("executeQuery result:", { status: result.status, rowCount: result.rowCount, hasError: !!result.error });
+    return result;
   }
   return prototypeExecutor.execute(sql, options);
 }
