@@ -8,6 +8,11 @@ import {
 } from "@/lib/store";
 import { canAccessProject } from "@/lib/sqllab/access";
 
+async function fireSnapshot(queryId: string, projectId: string): Promise<void> {
+  const url = `http://localhost:8000/api/v1/snapshots?query_id=${encodeURIComponent(queryId)}&project_id=${encodeURIComponent(projectId)}`;
+  await fetch(url, { method: "POST", signal: AbortSignal.timeout(15_000) });
+}
+
 interface SavedQueryPayload {
   id?: unknown;
   projectId?: unknown;
@@ -85,6 +90,8 @@ export async function POST(request: NextRequest) {
       );
     }
     const updated = await updateSavedQuery(existing.id, { name, title, sql });
+    // Await snapshot so Insights has data immediately on navigate
+    await fireSnapshot(existing.id, project.id).catch(() => {});
     return NextResponse.json({ savedQuery: updated });
   }
 
@@ -95,5 +102,6 @@ export async function POST(request: NextRequest) {
     title,
     sql,
   });
+  await fireSnapshot(created.id, project.id).catch(() => {});
   return NextResponse.json({ savedQuery: created }, { status: 201 });
 }
