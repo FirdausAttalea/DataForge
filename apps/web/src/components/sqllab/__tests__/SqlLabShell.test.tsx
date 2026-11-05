@@ -68,7 +68,7 @@ describe("SqlLabShell session isolation", () => {
         workspaceId="ws-alpha"
         project={{ id: "project-alpha", title: "Alpha Project", environment: "production" }}
         tables={retailTables}
-        initialSavedQuery={saved("sq-a", "project-alpha", "ws-alpha", "query_alpha.sql", "Alpha Query")}
+        savedQueries={[saved("sq-a", "project-alpha", "ws-alpha", "query_alpha.sql", "Alpha Query")]}
         initialExecutions={[]}
       />
     );
@@ -88,7 +88,7 @@ describe("SqlLabShell session isolation", () => {
         workspaceId="ws-alpha"
         project={{ id: "project-alpha", title: "Alpha Project", environment: "production" }}
         tables={retailTables}
-        initialSavedQuery={saved("sq-a", "project-alpha", "ws-alpha", "query_alpha.sql", "Alpha Query")}
+        savedQueries={[saved("sq-a", "project-alpha", "ws-alpha", "query_alpha.sql", "Alpha Query")]}
         initialExecutions={[]}
       />
     );
@@ -101,7 +101,7 @@ describe("SqlLabShell session isolation", () => {
         workspaceId="ws-beta"
         project={{ id: "project-beta", title: "Beta Project", environment: "staging" }}
         tables={saasTables}
-        initialSavedQuery={saved("sq-b", "project-beta", "ws-beta", "query_beta.sql", "Beta Query")}
+        savedQueries={[saved("sq-b", "project-beta", "ws-beta", "query_beta.sql", "Beta Query")]}
         initialExecutions={[]}
       />
     );
@@ -124,7 +124,7 @@ describe("SqlLabShell session isolation", () => {
         workspaceId="ws-gamma"
         project={{ id: "project-gamma", title: "Gamma Project", environment: "development" }}
         tables={retailTables}
-        initialSavedQuery={null}
+        savedQueries={[]}
         initialExecutions={[]}
       />
     );
@@ -144,7 +144,7 @@ describe("SqlLabShell session isolation", () => {
         workspaceId="ws-gamma"
         project={{ id: "project-gamma", title: "Gamma Project", environment: "development" }}
         tables={retailTables}
-        initialSavedQuery={null}
+        savedQueries={[]}
         initialExecutions={[]}
       />
     );
@@ -226,10 +226,10 @@ describe("SqlLabShell session isolation", () => {
         workspaceId="ws-alpha"
         project={{ id: "project-alpha", title: "Alpha Project", environment: "production" }}
         tables={retailTables}
-        initialSavedQuery={{
+        savedQueries={[{
           ...saved("sq-run", "project-alpha", "ws-alpha", "query_regions.sql", "Regional Revenue"),
           sql: "SELECT region, COUNT(*) AS orders FROM orders GROUP BY region;",
-        }}
+        }]}
         initialExecutions={[]}
       />
     );
@@ -257,4 +257,5 @@ describe("SqlLabShell session isolation", () => {
     );
   });
 });
+
 

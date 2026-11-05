@@ -16,6 +16,7 @@ import { useQueryRunner, type RunOutcome } from "@/lib/sqllab/use-query-runner";
 import { createSqlExecutor } from "@/lib/sqllab/executor";
 import { usePlatformModifier } from "@/lib/sqllab/use-platform-modifier";
 import { confirmDiscardChanges, useUnsavedChangesGuard } from "@/lib/sqllab/use-unsaved-changes";
+import { loadTabState, saveTabState } from "@/lib/sqllab/tab-persistence";
 import { SqlLabTopBar } from "./SqlLabTopBar";
 import { QueryHeader } from "./QueryHeader";
 import { SchemaExplorer } from "./SchemaExplorer";
@@ -33,7 +34,8 @@ export interface SqlLabShellProps {
     environment: ProjectEnvironment;
   };
   tables: TableDef[];
-  initialSavedQuery: SavedQuery | null;
+  /** All saved queries for this project — used for initial tab restore */
+  savedQueries: SavedQuery[];
   initialExecutions: QueryExecution[];
 }
 
@@ -62,19 +64,69 @@ function makeBlankTab(index: number): QueryTab {
   };
 }
 
-function makeInitialTabs(saved: SavedQuery | null): QueryTab[] {
-  if (!saved) return [makeBlankTab(1)];
-  return [
-    {
-      id: `tab-${saved.id}`,
-      savedQueryId: saved.id,
-      name: saved.name,
-      title: saved.title,
-      sql: saved.sql,
-      savedSql: saved.sql,
-      updatedAt: saved.updatedAt,
-    },
-  ];
+function tabsFromSavedQueries(queries: SavedQuery[]): QueryTab[] {
+  if (!queries.length) return [makeBlankTab(1)];
+  return queries.map((saved) => ({
+    id: `tab-${saved.id}`,
+    savedQueryId: saved.id,
+    name: saved.name,
+    title: saved.title,
+    sql: saved.sql,
+    savedSql: saved.sql,
+    updatedAt: saved.updatedAt,
+  }));
+}
+
+/**
+ * Merge server-fresh savedQueries into persisted tabs:
+ * - Persisted draft (dirty) content wins over server SQL
+ * - Server name/title/updatedAt always win (they're the truth)
+ * - Persisted tabs whose savedQueryId no longer exists on server are dropped
+ * - New server queries not yet in persisted tabs are appended
+ */
+function mergeTabState(
+  persisted: QueryTab[],
+  serverQueries: SavedQuery[]
+): QueryTab[] {
+  const serverMap = new Map(serverQueries.map((q) => [q.id, q]));
+  const merged: QueryTab[] = [];
+
+  for (const tab of persisted) {
+    if (!tab.savedQueryId) {
+      // blank unsaved draft — keep as-is
+      merged.push(tab);
+      continue;
+    }
+    const server = serverMap.get(tab.savedQueryId);
+    if (!server) continue; // deleted on server — drop
+    merged.push({
+      ...tab,
+      // keep draft sql if dirty; otherwise sync from server
+      sql: tab.sql !== tab.savedSql ? tab.sql : server.sql,
+      savedSql: server.sql,
+      name: server.name,
+      title: server.title,
+      updatedAt: server.updatedAt,
+    });
+  }
+
+  // Append server queries not represented in persisted state
+  const persistedIds = new Set(persisted.map((t) => t.savedQueryId).filter(Boolean));
+  for (const q of serverQueries) {
+    if (!persistedIds.has(q.id)) {
+      merged.push({
+        id: `tab-${q.id}`,
+        savedQueryId: q.id,
+        name: q.name,
+        title: q.title,
+        sql: q.sql,
+        savedSql: q.sql,
+        updatedAt: q.updatedAt,
+      });
+    }
+  }
+
+  return merged.length ? merged : [makeBlankTab(1)];
 }
 
 function toHistoryEntry(execution: QueryExecution): HistoryEntry {
@@ -93,15 +145,23 @@ export function SqlLabShell({
   workspaceId,
   project,
   tables,
-  initialSavedQuery,
+  savedQueries,
   initialExecutions,
 }: SqlLabShellProps) {
   const router = useRouter();
   const modifier = usePlatformModifier();
-  
-  const [tabs, setTabs] = useState<QueryTab[]>(() => makeInitialTabs(initialSavedQuery));
 
-  const [activeTabId, setActiveTabId] = useState(() => tabs[0].id);
+  const [tabs, setTabs] = useState<QueryTab[]>(() => {
+    const persisted = loadTabState(project.id);
+    if (persisted) return mergeTabState(persisted.tabs, savedQueries);
+    return tabsFromSavedQueries(savedQueries);
+  });
+
+  const [activeTabId, setActiveTabId] = useState<string>(() => {
+    const persisted = loadTabState(project.id);
+    if (persisted) return persisted.activeTabId;
+    return tabs[0].id;
+  });
   const [selectedTableId, setSelectedTableId] = useState(() => {
     const preferred = tables.find((table) => table.name === "orders") ?? tables[0];
     return preferred?.id ?? "";
@@ -130,6 +190,11 @@ export function SqlLabShell({
   const syntax = useMemo(() => checkBasicSyntax(activeTab?.sql ?? ""), [activeTab?.sql]);
   const dirty = tabs.some((tab) => tab.sql !== tab.savedSql);
   useUnsavedChangesGuard(dirty);
+
+  // Persist tab state to sessionStorage on every change
+  useEffect(() => {
+    saveTabState(project.id, tabs, activeTabId);
+  }, [project.id, tabs, activeTabId]);
 
   useEffect(() => {
     if (!notice) return;
@@ -180,10 +245,11 @@ export function SqlLabShell({
   );
 
   useEffect(() => {
-    if (!initialSavedQuery && tabs.length === 1 && tabs[0].sql && !tabs[0].savedQueryId) {
+    // Auto-save a new blank tab that has content but no server ID yet
+    if (savedQueries.length === 0 && tabs.length === 1 && tabs[0].sql && !tabs[0].savedQueryId) {
       void saveTab(tabs[0], false);
     }
-  }, [initialSavedQuery, tabs, saveTab]);
+  }, [savedQueries.length, tabs, saveTab]);
 
   const logExecution = useCallback(
     async (outcome: RunOutcome, sql: string) => {
@@ -360,7 +426,9 @@ export function SqlLabShell({
         // proceed even if background save errors
       }
     }
-    router.push(`/projects/${project.id}/insights`);
+    const queryId = activeTab?.savedQueryId;
+    const params = queryId ? `?queryId=${queryId}` : "";
+    router.push(`/projects/${project.id}/insights${params}`);
   }
 
   function formatActive() {
@@ -437,12 +505,13 @@ export function SqlLabShell({
           onHistory={() => setHistoryOpen(true)}
           onTitleChange={(newTitle) => {
             if (activeTab) {
+              const updatedTab = { ...activeTab, title: newTitle, name: `${newTitle}.sql` };
               setTabs((prev) =>
                 prev.map((tab) =>
-                  tab.id === activeTab.id ? { ...tab, title: newTitle } : tab
+                  tab.id === activeTab.id ? updatedTab : tab
                 )
               );
-              saveActive(true);
+              void saveTab(updatedTab, true);
             }
           }}
         />

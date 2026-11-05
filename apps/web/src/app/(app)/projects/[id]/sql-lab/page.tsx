@@ -4,7 +4,7 @@ import {
   getProjectById,
   getTableById,
   getWorkspacesByOwner,
-  getSavedQueryByProject,
+  getSavedQueriesByProject,
   getExecutionsByWorkspace,
 } from "@/lib/store";
 import { canAccessProject } from "@/lib/sqllab/access";
@@ -48,8 +48,12 @@ export default async function SqlLabPage({ params }: SqlLabPageProps) {
     .map((tableId) => getTableById(tableId))
     .filter((table): table is NonNullable<typeof table> => table !== null);
 
-  const savedQuery =
-    (await getSavedQueryByProject(project.id)) ?? getDemoSavedQuery(project.id, workspace.id);
+  // Pass ALL saved queries so the shell can restore multi-tab state
+  let savedQueries = await getSavedQueriesByProject(project.id);
+  if (savedQueries.length === 0) {
+    const demo = getDemoSavedQuery(project.id, workspace.id);
+    if (demo) savedQueries = [demo];
+  }
 
   const executions = (await getExecutionsByWorkspace(workspace.id))
     .filter((execution) => execution.projectId === project.id)
@@ -65,7 +69,7 @@ export default async function SqlLabPage({ params }: SqlLabPageProps) {
         environment: project.environment ?? "production",
       }}
       tables={tables}
-      initialSavedQuery={savedQuery}
+      savedQueries={savedQueries}
       initialExecutions={executions}
     />
   );
